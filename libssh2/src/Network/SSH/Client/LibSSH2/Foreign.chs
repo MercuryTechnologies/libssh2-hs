@@ -48,7 +48,7 @@ module Network.SSH.Client.LibSSH2.Foreign
    sftpOpenFile,
    sftpRenameFile, sftpRenameFileEx,
    sftpWriteFileFromHandler, sftpWriteFileFromBytes,
-   sftpReadFileToHandler, sftpFstat, sftpDeleteFile,
+   sftpReadFileToHandler, sftpFstat, sftpStat, sftpDeleteFile, sftpMkdir,
 
    RenameFlag (..), SftpFileTransferFlags (..),
    SftpAttributes (..),
@@ -732,6 +732,17 @@ sftpReadDir sftph = do
         True ->
            return Nothing
 
+-- | Create a directory on the SFTP server. Requires parent directories
+-- to exist.
+sftpMkdir :: Sftp     -- ^ Opened sftp session
+          -> FilePath -- ^ Path of the directory to create
+          -> CLong    -- ^ Permissions mode
+          -> IO ()
+sftpMkdir sftp path mode = do
+  withCStringLen path $ \(pathP, pathL) -> do
+    void . handleInt (Just sftp) $
+      {# call sftp_mkdir_ex #} (toPointer sftp) pathP (toEnum pathL) mode
+
 -- | Close file handle
 sftpCloseHandle :: SftpHandle -> IO ()
 sftpCloseHandle sftph =
@@ -876,6 +887,18 @@ parseSftpAttributes sftpattrptr = do
     mtime<- {# get _LIBSSH2_SFTP_ATTRIBUTES->mtime #} sftpattrptr
 
     return $ SftpAttributes flags size uid gid perm atime mtime
+
+-- | Get sftp attributes by path. Compared to
+-- | 'sftpFstat', this doesn't require actually opening the file.
+sftpStat :: Sftp
+         -> FilePath
+         -> IO SftpAttributes
+sftpStat sftp path = do
+  withCStringLen path $ \(pathP, pathL) ->
+    allocaBytes {# sizeof _LIBSSH2_SFTP_ATTRIBUTES #} $ \sftpattrptr -> do
+      void . handleInt (Just sftp) $
+        {# call sftp_stat_ex #} (toPointer sftp) pathP (toEnum pathL) {# const LIBSSH2_SFTP_STAT #} sftpattrptr
+      parseSftpAttributes sftpattrptr
 
 -- | Delete file from SFTP server
 sftpDeleteFile :: Sftp     -- ^ Opened sftp session

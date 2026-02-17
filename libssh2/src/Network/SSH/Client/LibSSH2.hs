@@ -29,8 +29,8 @@ module Network.SSH.Client.LibSSH2
    sftpSendFile, sftpSendFromHandle,
    sftpSendBytes,
    sftpReceiveFile, sftpReadFileToHandler,
-   sftpFstat,
-   sftpDeleteFile,
+   sftpFstat, sftpStat,
+   sftpDeleteFile, sftpMkdir,
 
    -- * Utilities
    socketConnect,
